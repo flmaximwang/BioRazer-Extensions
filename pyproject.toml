@@ -18,4 +18,6 @@ packages = [
 python = ">=3.12,<4.0"
 numpy = "^2.3.2"
 treelib = "^1.8.0"
+biopython = "^1.85"
+pandas = "^2.3.1"
 
