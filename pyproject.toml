@@ -1,0 +1,21 @@
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry]
+name = "biorazer-extensions"
+version = "0.1.0"
+description = "This package brings about many helper functions to make using other packages easier."
+authors = [
+    "Maxim Wang <wangfanlin2022@sibcb.ac.cn>"
+]
+readme = "README.md"
+packages = [
+    {include = "biorazer_ex"}
+]
+
+[tool.poetry.dependencies]
+python = ">=3.12,<4.0"
+numpy = "^2.3.2"
+treelib = "^1.8.0"
+
