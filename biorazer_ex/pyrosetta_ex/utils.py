@@ -1,8 +1,7 @@
-import logging
-import site
-import re
+import logging, site, re, sys, os
 from pathlib import Path
-import pyrosetta as pr
+
+import pyrosetta
 from pyrosetta.rosetta.core.select import get_residue_set_from_subset
 from pyrosetta.rosetta.core.pose import PDBInfo, Pose
 
@@ -46,7 +45,16 @@ def redict_to_file(
     logger.addHandler(file_handler)
     ######################################################################
 
-    pr.logging_support.set_logging_sink()  # Make sure Pyrosetta uses logger "rosetta"
+    pyrosetta.logging_support.set_logging_sink()  # Make sure Pyrosetta uses logger "rosetta"
+
+
+def quiet_init():
+    with open(os.devnull, "w") as devnull:
+        sys.stdout = devnull
+        sys.stderr = devnull
+        pyrosetta.init()
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
 
 
 def generate_pose_from_residue_mask(pose, residue_mask):
