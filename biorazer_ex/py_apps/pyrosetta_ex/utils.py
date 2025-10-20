@@ -46,13 +46,14 @@ def redict_to_file(
     ######################################################################
 
     pyrosetta.logging_support.set_logging_sink()  # Make sure Pyrosetta uses logger "rosetta"
+    return logger
 
 
-def quiet_init():
+def quiet_init(**kwargs):
     with open(os.devnull, "w") as devnull:
         sys.stdout = devnull
         sys.stderr = devnull
-        pyrosetta.init()
+        pyrosetta.init(**kwargs)
     sys.stdout = sys.__stdout__
     sys.stderr = sys.__stderr__
 

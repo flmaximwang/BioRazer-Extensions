@@ -4,20 +4,22 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
 name = "biorazer-extensions"
-version = "0.1.2"
+version = "0.2.0"
 description = "This package brings about many helper functions to make using other packages easier."
 authors = [
     "Maxim Wang <wangfanlin2022@sibcb.ac.cn>"
 ]
 readme = "README.md"
 packages = [
-    {include = "src/biorazer_ex"}
+    {include = "biorazer_ex"}
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.12,<4.0"
-numpy = "^2.3.2"
+python = ">=3.11,<4.0"
+numpy = "^2"
 treelib = "^1.8.0"
 biopython = "^1.85"
 pandas = "^2.3.1"
+tqdm = "^4.67.1"
+fastapi = "^0.116.1"
 

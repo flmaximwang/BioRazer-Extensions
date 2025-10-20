@@ -22,31 +22,10 @@ class Blueprint:
         return self.data
 
     @staticmethod
-    def from_str(bp_str):
-        blueprint = Blueprint()
-        data = blueprint.get_data()
-
-        for line in bp_str.strip().split("\n"):
-            parts = line.strip().split()
-            new_row = dict(
-                res_id_pos=int(parts[0]),
-                aa=parts[1],
-                ss=parts[2],
-                command=" ".join(parts[3:]) if len(parts) > 3 else "",
-            )
-            data.loc[len(data)] = new_row
-
-        return blueprint
-
-    @staticmethod
-    def from_file(bp):
-
-        with open(bp, "r") as f:
-            bp_str = "".join(f.readlines())
-        return Blueprint.from_str(bp_str)
-
-    @staticmethod
     def pdb2str(pdb, chain):
+        """
+        Generate a Blueprint string from a PDB file.
+        """
         if not Path(pdb).exists():
             raise FileNotFoundError(f"PDB file {pdb} does not exist.")
         rosetta_config.check()
@@ -77,6 +56,30 @@ class Blueprint:
         with open(bp, "w") as f:
             f.write(bp_str)
         return bp
+
+    @staticmethod
+    def from_str(bp_str):
+        blueprint = Blueprint()
+        data = blueprint.get_data()
+
+        for line in bp_str.strip().split("\n"):
+            parts = line.strip().split()
+            new_row = dict(
+                res_id_pos=int(parts[0]),
+                aa=parts[1],
+                ss=parts[2],
+                command=" ".join(parts[3:]) if len(parts) > 3 else "",
+            )
+            data.loc[len(data)] = new_row
+
+        return blueprint
+
+    @staticmethod
+    def from_bp(bp):
+
+        with open(bp, "r") as f:
+            bp_str = "".join(f.readlines())
+        return Blueprint.from_str(bp_str)
 
     @staticmethod
     def from_pdb(pdb, chain):
@@ -115,6 +118,13 @@ class Blueprint:
         index_res_id_pos = self.get_res_is_pos_index(res_id_pos)
         bp_data = self.get_data()
         bp_data.loc[index_res_id_pos, "command"] = command
+
+    def set_aa(self, res_id_pos, aa):
+        index_res_id_pos = self.get_res_is_pos_index(res_id_pos)
+        bp_data = self.get_data()
+        if len(aa) != 1:
+            raise ValueError(f"AA must be a single character, got {aa}.")
+        bp_data.loc[index_res_id_pos, "aa"] = aa
 
     def insert_seq(self, seq, res_id_pos, ss="L", extend=[1, 1]):
         bp_data = self.get_data()
