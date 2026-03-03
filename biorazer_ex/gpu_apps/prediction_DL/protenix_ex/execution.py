@@ -176,7 +176,7 @@ class SingleProtenixEx(SingleExecution):
                     seq.set_msa_dir(f"./{self.name}_msa_{counter}")
                     seq.export_msa()
 
-    def output(self):
+    def json(self):
         return dict(
             name=self.name,
             sequences=[seq.output() for seq in self.sequences],
@@ -194,7 +194,7 @@ class BatchProtenixEx(BatchExecution):
             target_dir_path.mkdir(parents=True)
         for exe in self.executions:
             exe.export_msa(target_dir)
-        res = [exe.output() for exe in self.executions]
+        res = [exe.json() for exe in self.executions]
         if num_per_file is None:
             num_per_file = len(res)
         with change_dir(target_dir):

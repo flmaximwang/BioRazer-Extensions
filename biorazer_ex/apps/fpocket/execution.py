@@ -43,6 +43,7 @@ def collect(
     ]
 
     all_data = []
+    row_data = {}
     with open(pocket_info_txt, "r") as f:
         for line in f:
             if line.startswith("Pocket"):
@@ -73,7 +74,7 @@ def collect(
         raise ValueError(f"Unsupported file format: {pdb_cif_path.suffix}")
     for i, pdb in enumerate(pocket_pdbs):
         pocket = PDB2STRUCT(pdb, "").read()
-        neighbor_mask = mask_atom_within_distance(pocket, structure, distance=5.0)
+        neighbor_mask = mask_atoms_within_distance(pocket, structure, distance=5.0)
         neighbors = structure[neighbor_mask]
         fibonacci_grid = fibonacci_surface_grid(
             neighbors.coord,
@@ -184,7 +185,7 @@ def run(pdb_cif, *args, n_points=512, probe_radius=1.5, **kwargs):
         cmd_args.append(str(value))
     p = subprocess.run(cmd_args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = p.stdout, p.stderr
-    if stderr:
+    if p.returncode != 0:
         raise RuntimeError(f"fpocket failed with error: {stderr.decode('utf-8')}")
     # fpocket_end = time.time()
     # print(f"fpocket finished in {fpocket_end - fpocket_start:.2f} seconds")

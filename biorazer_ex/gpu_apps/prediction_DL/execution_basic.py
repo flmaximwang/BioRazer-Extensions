@@ -6,7 +6,7 @@ from abc import ABC, abstractmethod
 class SingleExecution(ABC):
 
     @abstractmethod
-    def output(self):
+    def dict(self):
         """
         Implement in subclasses to return a dict that can easily be parsed by json, yaml, etc.
         """

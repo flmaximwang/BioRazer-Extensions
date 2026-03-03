@@ -15,8 +15,8 @@ def print_pyrosetta_dir():
 def redict_to_file(
     target_file,
     logging_level=logging.INFO,
-    overwrite=True,
-    fmt="[%(asctime)s] %(message)s",
+    format="[%(asctime)s] %(message)s",
+    mode="a",
 ):
     """
     Execute this function before pyrosetta.init() to redirect the logger to a file.
@@ -27,17 +27,14 @@ def redict_to_file(
 
     ###################### Constructing FileHandler ######################
     target_file = Path(target_file)
-    if overwrite:
-        file_handler = logging.FileHandler(target_file, mode="w")
-    else:
-        file_handler = logging.FileHandler(target_file, mode="a")
+    file_handler = logging.FileHandler(target_file, mode=mode)
 
     class EscapeFormatter(logging.Formatter):
         def format(self, record):
             s = super().format(record)
             return re.sub(r"\x1b\[[0-9;]*m", "", s)  # 移除 ANSI 转义序列)
 
-    file_handler.setFormatter(EscapeFormatter(fmt))
+    file_handler.setFormatter(EscapeFormatter(format))
     file_handler.setLevel(logging_level)
 
     if logger.hasHandlers():

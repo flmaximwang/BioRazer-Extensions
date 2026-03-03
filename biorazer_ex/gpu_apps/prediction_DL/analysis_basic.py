@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from biorazer.structure.io import CIF2STRUCT, PDB2STRUCT, CIF2CIF, PDB2SEQ
+from biorazer.structure.io.protein import CIF2STRUCT, PDB2STRUCT, CIF2CIF, PDB2SEQ
 from biorazer.design.sequence import SequenceEntry, SequenceLibrary
 
 

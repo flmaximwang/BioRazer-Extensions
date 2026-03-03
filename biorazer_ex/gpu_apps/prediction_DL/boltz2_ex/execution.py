@@ -9,7 +9,8 @@ class Boltz2Modification:
         self.position = position
         self.ccd = ccd
 
-    def output(self):
+    @property
+    def dict(self):
         return {
             "position": self.position,
             "ccd": self.ccd,
@@ -17,6 +18,24 @@ class Boltz2Modification:
 
 
 class Boltz2Sequence:
+    """
+    Parameters
+    ----------
+    entity_type: str
+        The type of the sequence. Must be one of "protein", "dna", "rna", or "ligand".
+    id: list of str
+        The identifier(s) for the sequence.
+    sequence: str, optional
+        The amino acid or nucleotide sequence. Required for "protein", "dna", and "rna" entity types.
+    msa: str, optional
+        The multiple sequence alignment in a3m format. Optional for "protein", "dna", and "rna" entity types.
+    smiles: str, optional
+        The SMILES representation of the ligand. Required for "ligand" entity type if ccd is not provided.
+    ccd: str, optional
+        The CCD code of the ligand. Required for "ligand" entity type if smiles is not provided.
+    modifications: list of Boltz2Modification, optional
+        A list of modifications for the sequence. Applicable for "protein", "dna", and "rna" entity types.
+    """
 
     def __init__(
         self,
@@ -61,7 +80,8 @@ class Boltz2Sequence:
     def set_no_msa(self):
         self.msa = f">query\n{self.sequence}\n"
 
-    def output(self):
+    @property
+    def dict(self):
         output_dict = {
             "id": self.id,
         }
@@ -76,7 +96,7 @@ class Boltz2Sequence:
                 output_dict[self.entity_type]["msa"] = self.msa
             if len(self.modifications) > 0:
                 output_dict[self.entity_type]["modifications"] = [
-                    mod.output() for mod in self.modifications
+                    mod.dict() for mod in self.modifications
                 ]
             return output_dict
         elif self.entity_type in ["dna", "rna"]:
@@ -88,7 +108,7 @@ class Boltz2Sequence:
             }
             if len(self.modifications) > 0:
                 output_dict[self.entity_type]["modifications"] = [
-                    mod.output() for mod in self.modifications
+                    mod.dict() for mod in self.modifications
                 ]
             return output_dict
         elif self.entity_type == "ligand":
@@ -120,7 +140,8 @@ class Boltz2BondAtom:
         self.res_id = res_id
         self.atom_name = atom_name
 
-    def output(self):
+    @property
+    def dict(self):
         return [self.chain_id, self.res_id, self.atom_name]
 
 
@@ -161,12 +182,13 @@ class Boltz2Constraint:
                 "Invalid constraint type. Constraint type must be 'bond' or 'binder'"
             )
 
-    def output(self):
+    @property
+    def dict(self):
         if self.type == "bond":
             return {
                 "bond": {
-                    "atom1": self.atom1.output(),
-                    "atom2": self.atom2.output(),
+                    "atom1": self.atom1.dict,
+                    "atom2": self.atom2.dict,
                 }
             }
         elif self.type == "binder":
@@ -194,16 +216,17 @@ class SingleBoltz2Ex(SingleExecution):
         self.sequences = sequences
         self.constraints = constraints if constraints is not None else []
 
-    def output(self):
+    @property
+    def dict(self):
         output_dict = {
             "sequences": [],
         }
         for seq in self.sequences:
-            output_dict["sequences"].append(seq.output())
+            output_dict["sequences"].append(seq.dict)
         if len(self.constraints) > 0:
             output_dict["constraints"] = []
             for con in self.constraints:
-                output_dict["constraints"].append(con.output())
+                output_dict["constraints"].append(con.dict)
         return output_dict
 
 
@@ -235,7 +258,7 @@ class BatchBoltz2Ex(BatchExecution):
                         with open(a3m, "w") as f:
                             f.write(sequence.msa)
                             sequence.msa = f"./{a3m}"
-            output_dict: dict = execution.output()
+            output_dict: dict = execution.dict
             output_dict.update(self.extra_info)
             with open(f"{execution.name}.yaml", "w") as f:
                 yaml.dump(output_dict, f, indent=2)

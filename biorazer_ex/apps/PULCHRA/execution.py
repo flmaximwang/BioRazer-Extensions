@@ -8,13 +8,11 @@ from ..basic import App
 
 class PulchraFixBB(App):
 
-    def __init__(self, app_dir, app_bin, log_name="pulchra_fixbb"):
-        super().__init__(app_dir, app_bin, log_name=log_name)
+    def __init__(self, app_dir=None, app_bin="pulchra", logger=None):
+        super().__init__(app_dir, app_bin, logger=logger)
 
-    def run(self, atom_array: bio_struct.AtomArray) -> bio_struct.AtomArray:
+    def run(self, atom_array: bio_struct.AtomArray, cwd=None) -> bio_struct.AtomArray:
         pulchra_exe = self.bin
-        if pulchra_exe is None:
-            pulchra_exe = Path(__file__).parent / "pulchra"
         cache_dir = tempfile.gettempdir()
         with tempfile.TemporaryDirectory(dir=cache_dir) as temp_dir:
             chain_ids = list(set(atom_array.chain_id))

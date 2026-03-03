@@ -10,7 +10,8 @@ class AF3Glycan:
     residues: str
     position: int
 
-    def output(self):
+    @property
+    def json(self):
         return {"residues": self.residues, "position": self.position}
 
 
@@ -19,7 +20,8 @@ class AF3Modification:
     ptm_type: str
     ptm_position: int
 
-    def output(self):
+    @property
+    def json(self):
         return {"ptmType": self.ptm_type, "ptmPosition": self.ptm_position}
 
 
@@ -34,7 +36,8 @@ class AF3Template:
         with open(mmcif, "r") as f:
             return AF3Template(f.read(), query_indices, template_indices)
 
-    def output(self):
+    @property
+    def json(self):
         return {
             "mmcif": self.mmcif,
             "queryIndices": self.query_indices,
@@ -46,8 +49,9 @@ class AF3Template:
 class AF3Sequence:
     id: list[str] | str
 
+    @property
     @abstractmethod
-    def output(self):
+    def json(self):
         """
         Implement in subclasses to return a dict that can easily be parsed by json, yaml, etc.
         """
@@ -55,6 +59,27 @@ class AF3Sequence:
 
 @dataclass
 class AF3ProteinLocal(AF3Sequence):
+    """
+    Parameters
+    ----------
+    id : list[str] | str
+        Identifier(s) for the protein sequence.
+    sequence : str
+        The amino acid sequence of the protein.
+    unpaired_msa : str, optional
+        The unpaired multiple sequence alignment (MSA) in string format. Defaults to an empty string.
+    unpaired_msa_path : str, optional
+        The file path to the unpaired MSA. Defaults to an empty string.
+    paired_msa : str, optional
+        The paired multiple sequence alignment (MSA) in string format. Defaults to an empty string.
+    paired_msa_path : str, optional
+        The file path to the paired MSA. Defaults to an empty string.
+    modifications : list[AF3Modification], optional
+        A list of post-translational modifications for the protein. Defaults to an empty list.
+    templates : list[AF3Template], optional
+        A list of structural templates for the protein. Defaults to an empty list.
+    """
+
     id: list[str] | str
     sequence: str
     unpaired_msa: str = ""
@@ -110,7 +135,12 @@ class AF3ProteinLocal(AF3Sequence):
         self.paired_msa_path = a3m
         self.paired_msa = ""
 
-    def output(self):
+    def export_msa(self, unpaired_a3m: str, paired_a3m: str):
+        self.export_unpaired_msa(unpaired_a3m)
+        self.export_paired_msa(paired_a3m)
+
+    @property
+    def json(self):
         if self.paired_msa:
             raise ValueError(
                 "Paired MSA string is set. Please export it to a file and clear the string before output."
@@ -125,8 +155,8 @@ class AF3ProteinLocal(AF3Sequence):
                 "sequence": self.sequence,
                 "unpairedMsaPath": self.unpaired_msa_path,
                 "pairedMsaPath": self.paired_msa_path,
-                "modifications": [mod.output() for mod in self.modifications],
-                "templates": [temp.output() for temp in self.templates],
+                "modifications": [mod.json for mod in self.modifications],
+                "templates": [temp.json for temp in self.templates],
             },
         }
 
@@ -137,7 +167,8 @@ class AF3Atom:
     res_id: int
     atom_name: str
 
-    def output(self):
+    @property
+    def json(self):
         return [self.chain_id, self.res_id, self.atom_name]
 
 
@@ -146,12 +177,14 @@ class AF3BondedAtomPair:
     atom1: AF3Atom
     atom2: AF3Atom
 
-    def output(self):
-        [self.atom1.output(), self.atom2.output()]
+    @property
+    def json(self):
+        return [self.atom1.json, self.atom2.json]
 
 
 @dataclass
 class SingleAF3LocalEx(SingleExecution):
+
     name: str
     modelSeeds: list[int] = field(default_factory=lambda: [42])
     sequences: list[AF3Sequence] = field(default_factory=lambda: [])
@@ -160,12 +193,13 @@ class SingleAF3LocalEx(SingleExecution):
     dialect: str = "alphafold3"  # Required
     version: int = 3  # Required
 
-    def output(self):
+    @property
+    def json(self):
         res = {
             "name": self.name,
             "modelSeeds": self.modelSeeds,
-            "sequences": [seq.output() for seq in self.sequences],
-            "bondedAtomPairs": [pair.output() for pair in self.bonded_atom_pairs],
+            "sequences": [seq.json for seq in self.sequences],
+            "bondedAtomPairs": [pair.json for pair in self.bonded_atom_pairs],
             "dialect": self.dialect,
             "version": self.version,
         }
@@ -212,7 +246,7 @@ class BatchAF3LocalEx(BatchExecution):
                                 target_dir_path / f"{exe.name}_{seq.id}_paired.a3m",
                             )
                             seq.paired_msa_path = f"./{exe.name}_{seq.id}_paired.a3m"
-            res = exe.output()
+            res = exe.json
             with open(target_dir_path / f"{exe.name}.json", "w") as f:
                 json.dump(res, f, indent=4)
 

@@ -3,7 +3,7 @@ from pathlib import Path
 import pandas as pd
 from tqdm import tqdm
 from ..analysis_basic import SinglePrediction, BatchPrediction
-from biorazer.structure.io import CIF2PDB, CIF2CIF
+from biorazer.structure.io.protein import CIF2PDB, CIF2CIF
 
 
 class SingleAF3Local(SinglePrediction):

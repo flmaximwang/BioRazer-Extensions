@@ -1,3 +1,4 @@
+from dataclasses import dataclass, field
 import os
 import subprocess
 from pathlib import Path
@@ -5,10 +6,13 @@ import pandas as pd
 from . import config as rosetta_config
 
 
+@dataclass
 class Blueprint:
+    data: pd.DataFrame = field(default_factory=lambda: Blueprint.default_data())
 
-    def __init__(self):
-        self.data = pd.DataFrame(columns=["res_id_pos", "aa", "ss", "command"])
+    @staticmethod
+    def default_data() -> pd.DataFrame:
+        data = pd.DataFrame(columns=["res_id_pos", "aa", "ss", "command"])
         col_type_dict = dict(
             res_id_pos=int,
             aa=str,
@@ -16,23 +20,23 @@ class Blueprint:
             command=str,
         )
         for col, col_type in col_type_dict.items():
-            self.data[col] = self.data[col].astype(col_type)
+            data[col] = data[col].astype(col_type)
+        return data
 
-    def get_data(self):
-        return self.data
+    @classmethod
+    def from_pdb(cls, pdb, chain, script_dir: str | Path):
+        bp_str = cls.pdb2str(pdb, chain, script_dir)
+        return cls.from_str(bp_str)
 
     @staticmethod
-    def pdb2str(pdb, chain):
+    def pdb2str(pdb, chain, script_dir: str | Path):
         """
-        Generate a Blueprint string from a PDB file.
+        Generate a Blueprint string from a PDB file with Rosetta's getBluePrintFromCoords.pl script.
         """
-        if not Path(pdb).exists():
-            raise FileNotFoundError(f"PDB file {pdb} does not exist.")
-        rosetta_config.check()
         try:
             bp_str = subprocess.check_output(
                 [
-                    f"{rosetta_config.ROSETTA_TOOLS}/remodel/getBluePrintFromCoords.pl",
+                    f"{script_dir}/getBluePrintFromCoords.pl",
                     "-pdbfile",
                     pdb,
                     "--chain",
@@ -60,7 +64,7 @@ class Blueprint:
     @staticmethod
     def from_str(bp_str):
         blueprint = Blueprint()
-        data = blueprint.get_data()
+        data = blueprint.data
 
         for line in bp_str.strip().split("\n"):
             parts = line.strip().split()
@@ -81,19 +85,12 @@ class Blueprint:
             bp_str = "".join(f.readlines())
         return Blueprint.from_str(bp_str)
 
-    @staticmethod
-    def from_pdb(pdb, chain):
-        bp_str = Blueprint.pdb2str(pdb, chain)
-        return Blueprint.from_str(bp_str)
-
-    def to_file(self, bp):
-        data = self.get_data()
-        with open(bp, "w") as f:
+    def to_bp(self, bp_file):
+        data = self.data
+        with open(bp_file, "w") as f:
             for i in data.index:
                 line = f"{data.loc[i, 'res_id_pos']} {data.loc[i, 'aa']} {data.loc[i, 'ss']} {data.loc[i, 'command']}\n"
                 f.write(line)
-
-        return bp
 
     def get_res_is_pos_index(self, res_id_pos):
         if not isinstance(res_id_pos, int):
