@@ -2,10 +2,12 @@ import subprocess, re, shutil, warnings, time
 from pathlib import Path
 import pandas as pd
 from sklearn.cluster import DBSCAN
+from biotite.structure import AtomArray
 from biorazer.structure.io.protein import PDB2STRUCT, CIF2STRUCT
 from biorazer.structure.util.geometry.surface import fibonacci_surface_grid
 from biorazer.structure.util.dictionary.radius import vdw_radii
 from biorazer.structure.analysis.static.select import mask_atoms_within_distance
+from ...utils.structure_file import call_with_structure_file
 
 warnings.filterwarnings("ignore", module="biotite.structure.io.pdb")
 
@@ -199,3 +201,22 @@ def run(pdb_cif, *args, n_points=512, probe_radius=1.5, **kwargs):
     )
     pocket_df.to_csv(output_dir_path / f"{pdb_cif_path.stem}_pockets.csv", index=False)
     return pocket_df
+
+
+def run_with_structure(
+    atom_array: AtomArray,
+    *args,
+    input_file_format: str = "pdb",
+    n_points=512,
+    probe_radius=1.5,
+    **kwargs,
+):
+    return call_with_structure_file(
+        atom_array,
+        run,
+        *args,
+        temp_file_format=input_file_format,
+        n_points=n_points,
+        probe_radius=probe_radius,
+        **kwargs,
+    )

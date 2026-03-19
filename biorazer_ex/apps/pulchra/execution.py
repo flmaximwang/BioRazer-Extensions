@@ -39,3 +39,18 @@ class PulchraFixBB(App):
                 fixed_arrays.append(fixed_array)
         fixed_array = bio_struct.concatenate(fixed_arrays)
         return fixed_array
+
+    def run_with_structure(
+        self,
+        atom_array: bio_struct.AtomArray,
+        *args,
+        input_file_format="pdb",
+        cwd=None,
+        **kwargs,
+    ) -> bio_struct.AtomArray:
+        normalized_format = input_file_format.lower().lstrip(".")
+        if normalized_format != "pdb":
+            raise ValueError(
+                "PulchraFixBB currently only supports PDB temporary input."
+            )
+        return self.run(atom_array=atom_array, cwd=cwd)

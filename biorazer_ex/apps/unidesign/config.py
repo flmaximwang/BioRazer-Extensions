@@ -4,6 +4,17 @@ from ..basic import App
 
 class UniDesignConfig(App):
 
+    def run_with_structure(
+        self,
+        atom_array,
+        *args,
+        input_file_format="pdb",
+        **kwargs,
+    ):
+        raise NotImplementedError(
+            "UniDesignConfig is a configuration holder and does not execute structure-based runs."
+        )
+
     def set(self, app_dir):
         self.DIR = app_dir
         self.BIN = f"{self.DIR}/UniDesign"

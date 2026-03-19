@@ -1,5 +1,7 @@
 import os, subprocess, shutil
 from pathlib import Path
+from biotite.structure import AtomArray
+from ...utils.structure_file import call_with_structure_file
 from .config import UniDesignConfig
 
 config = None
@@ -56,3 +58,36 @@ def run(input_pdb, output_dir, cmd_kwargs, resfile="RESFILE.txt", log_name="UniD
     if result.returncode != 0:
         raise RuntimeError(f"UniDesign failed. See {log_name}.log for details.")
     os.chdir(cwd_ori)
+
+
+def run_with_structure(
+    atom_array: AtomArray,
+    output_dir,
+    cmd_kwargs,
+    resfile="RESFILE.txt",
+    log_name="UniDesign",
+    input_file_format: str = "pdb",
+):
+    """
+    Run UniDesign from an in-memory structure by materializing a temporary file.
+
+    Parameters
+    ----------
+    atom_array:
+        Input structure in biotite AtomArray format.
+    input_file_format:
+        Temporary file format used as app input. Default is "pdb".
+    """
+    return call_with_structure_file(
+        atom_array,
+        run,
+        output_dir,
+        cmd_kwargs,
+        resfile=resfile,
+        log_name=log_name,
+        temp_file_format=input_file_format,
+    )
+
+
+# Backward compatibility alias
+run_structure = run_with_structure

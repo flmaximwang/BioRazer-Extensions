@@ -1,28 +1,118 @@
 from abc import abstractmethod
 from pathlib import Path
 import logging, subprocess, selectors, pty, os, sys
+import re
 
 
 class App:
+    """
+    Base class for all applications. Provides common methods for running subprocesses and logging.
+
+        Attributes
+        ----------
+        dir : Path
+            The directory where the application is installed.
+        bin : Path
+            The path to the application's executable. Rosetta has multiple executables, so this can be set to any of them to use different tools.
+        logger : logging.Logger
+            Logger for the application. If not provided, a default logger will be created.
+    """
+
+    dir: Path
+    bin: Path
+    logger: logging.Logger
 
     def __init__(self, app_dir=None, app_bin=None, logger=None):
         self.dir = Path(app_dir) if app_dir else None
         self.bin = Path(app_bin) if app_bin else None
-        if logger is None:
+        self.logger = logger
+        self.__post_init__()
+        self.logger.debug(
+            f"Initialized App with dir: {self.dir}, bin: {self.bin}, logger: {self.logger}"
+        )
+
+    def __post_init__(self):
+        if isinstance(self.logger, str):
+            self.logger = logging.getLogger(self.logger)
+        if self.logger is None:
             self.logger = logging.getLogger(__name__)
-            # Check if the logger has handlers already to avoid duplicate logs
-            if not self.logger.hasHandlers():
-                formatter = logging.Formatter(
-                    "[%(asctime)s @ %(name)s] %(levelname)s: %(message)s"
+            self.set_default_logger_style()
+
+    def set_default_handler(
+        self,
+        handler_types=("StreamHandler",),
+        file_path=None,
+        stream=None,
+        file_mode="a",
+        file_encoding="utf-8",
+    ):
+        # Remove existing handlers before applying new defaults.
+        for handler in list(self.logger.handlers):
+            self.logger.removeHandler(handler)
+            handler.close()
+
+        if isinstance(handler_types, (str, type)):
+            handler_types = [handler_types]
+
+        for handler_type in handler_types:
+            if isinstance(handler_type, str):
+                handler_key = handler_type.lower()
+                if handler_key in {"streamhandler", "stream"}:
+                    handler = logging.StreamHandler(
+                        stream if stream is not None else sys.stdout
+                    )
+                elif handler_key in {"filehandler", "file"}:
+                    if file_path is None:
+                        raise ValueError("file_path is required for FileHandler.")
+                    handler = logging.FileHandler(
+                        filename=str(file_path),
+                        mode=file_mode,
+                        encoding=file_encoding,
+                    )
+                else:
+                    raise ValueError(f"Unsupported handler type: {handler_type}")
+            elif isinstance(handler_type, type) and issubclass(
+                handler_type, logging.FileHandler
+            ):
+                if file_path is None:
+                    raise ValueError("file_path is required for FileHandler.")
+                handler = handler_type(
+                    filename=str(file_path),
+                    mode=file_mode,
+                    encoding=file_encoding,
                 )
-                console_handler = logging.StreamHandler(sys.stdout)
-                console_handler.setFormatter(formatter)
-                console_handler.setLevel(logging.INFO)
-                self.logger.addHandler(console_handler)
-                self.logger.setLevel(logging.INFO)
-        else:
-            self.logger = logger
-        self.logger.debug(f"Initialized App with dir: {self.dir}, bin: {self.bin}")
+            elif isinstance(handler_type, type) and issubclass(
+                handler_type, logging.StreamHandler
+            ):
+                handler = handler_type(stream if stream is not None else sys.stdout)
+            else:
+                raise ValueError(f"Unsupported handler type: {handler_type}")
+
+            self.logger.addHandler(handler)
+
+    def set_default_logger_style(
+        self,
+        fmt="[%(asctime)s @ %(name)s] %(levelname)s: %(message)s",
+        level=logging.INFO,
+        handler_types=("StreamHandler",),
+        file_path=None,
+    ):
+        formatter = logging.Formatter(fmt)
+
+        self.set_default_handler(handler_types=handler_types, file_path=file_path)
+        for handler in self.logger.handlers:
+            handler.setFormatter(formatter)
+            handler.setLevel(level)
+        self.logger.setLevel(level)
+
+    def _normalize_log_message(self, message):
+        if message is None:
+            return ""
+        if not isinstance(message, str):
+            message = str(message)
+
+        # Strip ANSI escape sequences used for terminal styling.
+        return re.sub(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])", "", message)
 
     @abstractmethod
     def from_default_bin(cls, bin_name):
@@ -42,6 +132,21 @@ class App:
         """
         Implement in subclass to check if the app is installed correctly.
         """
+
+    @abstractmethod
+    def run_with_structure(
+        self,
+        atom_array,
+        *args,
+        input_file_format="pdb",
+        **kwargs,
+    ):
+        """
+        Run app from an in-memory structure by materializing a temporary file.
+
+        Subclasses should implement app-specific argument wiring.
+        """
+        raise NotImplementedError("Subclasses must implement run_with_structure().")
 
     def run(self, *args, cwd=".", get_output=True, verbose=True, mode="pty"):
         """
@@ -120,15 +225,16 @@ class App:
                             line_left = lines_tmp.pop()
                         self.logger.debug(f"Line left: {line_left}")
                         for line in lines_tmp:
+                            normalized_line = self._normalize_log_message(line).strip()
                             if key.fileobj == master_stderr:
                                 if verbose:
-                                    self.logger.error(line.strip())
+                                    self.logger.error(normalized_line)
                                 if get_output:
                                     output += line
                                 error += line
                             elif key.fileobj == master_stdout:  # master_stdout
                                 if verbose:
-                                    self.logger.info(line.strip())
+                                    self.logger.info(normalized_line)
                                 if get_output:
                                     output += line
                             else:
@@ -169,7 +275,7 @@ class App:
             else:
                 output = result.stderr
             if verbose:
-                self.logger.info("\n" + output)
+                self.logger.info("\n" + self._normalize_log_message(output))
             if get_output:
                 return output
         elif mode == "subprocess.Popen":
@@ -187,11 +293,11 @@ class App:
                 self.logger.debug("Process is still running...")
                 for line in p.stdout:
                     if verbose:
-                        self.logger.info(line.strip())
+                        self.logger.info(self._normalize_log_message(line).strip())
                     stdout += line
                 for line in p.stderr:
                     if verbose:
-                        self.logger.error(line.strip())
+                        self.logger.error(self._normalize_log_message(line).strip())
                     stderr += line
 
             stderr += p.stderr.read()
@@ -208,7 +314,7 @@ class App:
             else:
                 output = stderr
             if verbose:
-                self.logger.info("\n" + output)
+                self.logger.info("\n" + self._normalize_log_message(output))
             if get_output:
                 return output
 
