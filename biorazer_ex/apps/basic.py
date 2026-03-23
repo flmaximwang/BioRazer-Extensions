@@ -1,5 +1,6 @@
 from abc import abstractmethod
 from pathlib import Path
+import codecs
 import logging, subprocess, selectors, pty, os, sys
 import re
 
@@ -191,6 +192,10 @@ class App:
                 )  # Register for read events
 
             line_left = ""
+            decoders = {
+                master_stdout: codecs.getincrementaldecoder("utf-8")(),
+                master_stderr: codecs.getincrementaldecoder("utf-8")(),
+            }
             while True:
                 self.logger.debug("Process is still running...")
 
@@ -210,10 +215,27 @@ class App:
                     ):  # Bitwise AND to check whether mask contains EVENT_READ
                         data = os.read(key.fileobj, 8192)
                         if not data:
+                            remaining = decoders[key.fileobj].decode(b"", final=True)
+                            if remaining:
+                                normalized_line = self._normalize_log_message(remaining).strip()
+                                if key.fileobj == master_stderr:
+                                    if verbose:
+                                        self.logger.error(normalized_line)
+                                    if get_output:
+                                        output += remaining
+                                    error += remaining
+                                elif key.fileobj == master_stdout:
+                                    if verbose:
+                                        self.logger.info(normalized_line)
+                                    if get_output:
+                                        output += remaining
                             sel.unregister(key.fileobj)  # No more data to read
                             continue
 
-                        lines_tmp = data.decode().splitlines(keepends=True)
+                        decoded = decoders[key.fileobj].decode(data, final=False)
+                        if not decoded:
+                            continue
+                        lines_tmp = decoded.splitlines(keepends=True)
                         self.logger.debug(f"Line left: {line_left}")
                         self.logger.debug(f"Read data: {lines_tmp}")
                         if line_left:
