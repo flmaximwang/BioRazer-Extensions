@@ -1,6 +1,7 @@
 from abc import abstractmethod
 from pathlib import Path
 import codecs
+import errno
 import logging, subprocess, selectors, pty, os, sys
 import re
 
@@ -191,7 +192,10 @@ class App:
                     master_fd, selectors.EVENT_READ
                 )  # Register for read events
 
-            line_left = ""
+            line_left = {
+                master_stdout: "",
+                master_stderr: "",
+            }
             decoders = {
                 master_stdout: codecs.getincrementaldecoder("utf-8")(),
                 master_stderr: codecs.getincrementaldecoder("utf-8")(),
@@ -213,9 +217,19 @@ class App:
                     if (
                         mask & selectors.EVENT_READ
                     ):  # Bitwise AND to check whether mask contains EVENT_READ
-                        data = os.read(key.fileobj, 8192)
+                        try:
+                            data = os.read(key.fileobj, 8192)
+                        except OSError as exc:
+                            # On Linux, reading from a PTY master after the slave
+                            # has closed can raise EIO instead of returning b"".
+                            if exc.errno == errno.EIO:
+                                data = b""
+                            else:
+                                raise
                         if not data:
                             remaining = decoders[key.fileobj].decode(b"", final=True)
+                            remaining = line_left[key.fileobj] + remaining
+                            line_left[key.fileobj] = ""
                             if remaining:
                                 normalized_line = self._normalize_log_message(remaining).strip()
                                 if key.fileobj == master_stderr:
@@ -236,16 +250,16 @@ class App:
                         if not decoded:
                             continue
                         lines_tmp = decoded.splitlines(keepends=True)
-                        self.logger.debug(f"Line left: {line_left}")
+                        self.logger.debug(f"Line left: {line_left[key.fileobj]}")
                         self.logger.debug(f"Read data: {lines_tmp}")
-                        if line_left:
-                            lines_tmp[0] = line_left + lines_tmp[0]
-                            line_left = ""
+                        if line_left[key.fileobj]:
+                            lines_tmp[0] = line_left[key.fileobj] + lines_tmp[0]
+                            line_left[key.fileobj] = ""
                         if lines_tmp[-1].endswith("\n"):
-                            line_left = ""
+                            line_left[key.fileobj] = ""
                         else:
-                            line_left = lines_tmp.pop()
-                        self.logger.debug(f"Line left: {line_left}")
+                            line_left[key.fileobj] = lines_tmp.pop()
+                        self.logger.debug(f"Line left: {line_left[key.fileobj]}")
                         for line in lines_tmp:
                             normalized_line = self._normalize_log_message(line).strip()
                             if key.fileobj == master_stderr:
