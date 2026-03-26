@@ -11,7 +11,7 @@ authors = [
 ]
 readme = "README.md"
 packages = [
-    {include = "biorazer_ex"}
+    {include = "biorazer_toolkit"}
 ]
 
 [tool.poetry.dependencies]

@@ -5,7 +5,7 @@ from pyrosetta.rosetta.basic import options
 from pyrosetta.rosetta.core.pose import Pose
 from pyrosetta.rosetta.protocols.moves import PyMOLMover
 from pyrosetta.rosetta.protocols.forge.remodel import RemodelMover
-from biorazer_ex.rosetta_ex.blueprint import rosetta_config, Blueprint
+from biorazer_toolkit.apps.rosetta.blueprint import rosetta_config, Blueprint
 
 pyrosetta.init()
 
